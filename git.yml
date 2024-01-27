@@ -1,0 +1,65 @@
+---
+- name: Deploy and Update Web Content
+  hosts: centos
+  become: yes
+  vars:
+    dest_directory: "/var/www/html/ansiblelab3"
+
+  tasks:
+    - name: Centos git install
+      ansible.builtin.package:
+        name: git
+        state: present
+
+    - name: Centos httpd install
+      ansible.builtin.package:
+        name: httpd
+        state: present
+
+    - name: Centos curl install
+      ansible.builtin.package:
+        name: curl
+        state: present
+
+    - name: CentOS > start web server
+      ansible.builtin.service:
+        name: httpd
+        state: started
+
+    - name: Clone or pull the Git repository
+      ansible.builtin.git:
+        repo: "https://github.com/jeongmin1234/ansiblelab3.git"
+        dest: "{{ dest_directory }}"
+        update: yes
+      register: git_result
+
+    - name: Display Git status
+      ansible.builtin.debug:
+        var: git_result.stdout_lines
+
+    - name: CentOS > firewalld
+      ansible.builtin.service:
+        name: firewalld
+        state: stopped
+        enabled: no
+
+    - name: git 변경 확인하고 pull
+      ansible.builtin.debug:
+        msg: "Changes pulled from Git repository"
+      when: git_result.changed
+
+    - name: Display debug information
+      ansible.builtin.debug:
+        var: local_ansible_html
+    - name: httpd restart를 위한 trigger set
+      ansible.builtin.set_fact:
+        restart_httpd: true
+      when: git_result.changed
+
+  handlers:
+    - name: restart httpd
+      ansible.builtin.service:
+        name: httpd
+        state: restarted
+      when: restart_httpd
+      listen: result
